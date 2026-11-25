@@ -1,8 +1,11 @@
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:tennis_app/components/app_colors.dart';
+import 'package:tennis_app/controller/auth_controller.dart';
 import 'package:tennis_app/models/login_model.dart';
+import 'package:tennis_app/pages/03_signupPage.dart';
+import 'package:tennis_app/services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -12,6 +15,7 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
+  AuthController controller = AuthController(AuthSupabaseService());
   final _formKey = GlobalKey<FormState>();
   int _passwordLength = 0;
   bool _showPassword = false;
@@ -30,6 +34,15 @@ class _LoginPageState extends State<LoginPage> {
     return null;
   }
 
+  // แปลง error code ของ Supabase เป็นข้อความที่ผู้ใช้อ่านเข้าใจ
+  String _loginErrorMessage(AuthException e) {
+    if (e.code == 'invalid_credentials') {
+      return 'Incorrect email or password. Please try again.';
+    }
+
+    return 'Something went wrong. Please try again.';
+  }
+
   @override
   void initState() {
     super.initState();
@@ -37,9 +50,15 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      backgroundColor: kPageColor,
       body: SafeArea(
         child: Form(
           key: _formKey,
@@ -48,11 +67,8 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               const SizedBox(height: 40.0),
               const Text(
-                'CourtMate',
-                style: TextStyle(
-                  fontSize: 28.0,
-                  fontWeight: FontWeight.bold,
-                ),
+                'Courtswap',
+                style: TextStyle(fontSize: 28.0, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 8.0),
               const SizedBox(height: 32.0),
@@ -118,7 +134,7 @@ class _LoginPageState extends State<LoginPage> {
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kBuyerColor,
-                    foregroundColor: Colors.black,
+                    foregroundColor: kOnBuyerColor,
                     padding: const EdgeInsets.symmetric(vertical: 16.0),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30.0),
@@ -141,27 +157,51 @@ class _LoginPageState extends State<LoginPage> {
                     _formKey.currentState!.save();
 
                     var loginMessage = '';
+                    var isSuccess = false;
 
                     try {
-                      final credential = await FirebaseAuth.instance
-                          .signInWithEmailAndPassword(
-                        email: _username!,
-                        password: _password!,
-                      );
+                      await controller.signIn(_username!, _password!);
 
-                      loginMessage =
-                          'Signed in successfully ${credential.user?.uid}';
-                    } on FirebaseAuthException catch (e) {
-                      loginMessage = 'Error [${e.code}] ${e.message}';
-                      debugPrint(loginMessage);
+                      isSuccess = true;
+                      loginMessage = 'Signed in successfully';
+                    } on AuthException catch (e) {
+                      loginMessage = _loginErrorMessage(e);
+                      debugPrint('Error [${e.code}] ${e.message}');
                     }
 
                     if (!context.mounted) return;
 
-                    context.read<LoginModel>().username = _username!;
+                    // จำเฉพาะอีเมลที่ล็อกอินผ่าน
+                    if (isSuccess) {
+                      context.read<LoginModel>().username = _username!;
+                    }
 
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text(loginMessage)),
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(SnackBar(content: Text(loginMessage)));
+                  },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: OutlinedButton(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30.0),
+                      side: const BorderSide(color: kBorderColor),
+                    ),
+                  ),
+                  child: const Text(
+                    'Sign up',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const SignupPage(),
+                      ),
                     );
                   },
                 ),

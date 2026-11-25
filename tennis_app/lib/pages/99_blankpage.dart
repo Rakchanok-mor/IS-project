@@ -6,13 +6,11 @@ class BlankPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar:  AppBar(
+      appBar: AppBar(
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
         title: Text('Blank Page'),
       ),
-      body:  Center(
-        child: Text('This is Blank Page'),
-      ),
+      body: Center(child: Text('This is Blank Page')),
     );
   }
 }
